@@ -1,4 +1,4 @@
-// src/App.jsx
+
 import { useState, useEffect } from "react";
 import "./App.css";
 import AuthModal from "./AuthModal";
@@ -12,13 +12,31 @@ function App() {
 
   const [authOpen, setAuthOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(""); // <-- search term
+  const [searchTerm, setSearchTerm] = useState("");
 
+  // Reviews states
+  const [reviews, setReviews] = useState({});
+  const [reviewText, setReviewText] = useState("");
+  const [reviewRating, setReviewRating] = useState(0); 
+
+  // Load user from localStorage
   useEffect(() => {
     const raw = localStorage.getItem("user");
     if (raw) setUser(JSON.parse(raw));
   }, []);
 
+  // Load reviews from localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem("reviews");
+    if (raw) setReviews(JSON.parse(raw));
+  }, []);
+
+  // Save reviews to localStorage
+  useEffect(() => {
+    localStorage.setItem("reviews", JSON.stringify(reviews));
+  }, [reviews]);
+
+  // Fetch games from RAWG API
   const fetchGames = async (page) => {
     setLoading(true);
     try {
@@ -48,6 +66,7 @@ function App() {
     fetchGames(page);
   }, [page]);
 
+  // Infinite scroll
   useEffect(() => {
     const handleScroll = () => {
       if (
@@ -76,6 +95,7 @@ function App() {
   const filteredGames = games.filter((game) =>
     game.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
 
   if (selectedGame) {
     return (
@@ -113,34 +133,103 @@ function App() {
           <button onClick={() => setSelectedGame(null)} className="back-button">
             ⬅ Back
           </button>
+
           <h2>{selectedGame.name}</h2>
           <img
             src={selectedGame.background_image}
             alt={selectedGame.name}
             className="detail-image"
           />
-          <p>
-            <strong>Released:</strong> {selectedGame.released}
-          </p>
-          <p>
-            <strong>Rating:</strong> {selectedGame.rating} / 5
-          </p>
-          <p>
-            <strong>Metacritic:</strong> {selectedGame.metacritic || "N/A"}
-          </p>
-          <p>
-            <strong>Genres:</strong>{" "}
-            {selectedGame.genres.map((g) => g.name).join(", ")}
-          </p>
-          <p>
-            <strong>Platforms:</strong>{" "}
-            {selectedGame.platforms.map((p) => p.platform.name).join(", ")}
-          </p>
+          <p><strong>Released:</strong> {selectedGame.released}</p>
+          <p><strong>Rating:</strong> {selectedGame.rating} / 5</p>
+          <p><strong>Metacritic:</strong> {selectedGame.metacritic || "N/A"}</p>
+          <p><strong>Genres:</strong> {selectedGame.genres.map((g) => g.name).join(", ")}</p>
+          <p><strong>Platforms:</strong> {selectedGame.platforms.map((p) => p.platform.name).join(", ")}</p>
+
+          {/* Review Form */}
+          {user && (
+            <div style={{ marginTop: "30px", width: "100%", maxWidth: "600px" }}>
+              <h3>Write a review</h3>
+              <textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                rows="4"
+                style={{ width: "100%", padding: "10px", borderRadius: "6px" }}
+                placeholder="Share your thoughts about this game..."
+              />
+              {/* Star rating */}
+              <div style={{ marginTop: "10px" }}>
+                <span>Rating: </span>
+                {[1,2,3,4,5].map((star) => (
+                  <span
+                    key={star}
+                    style={{
+                      cursor: "pointer",
+                      color: star <= reviewRating ? "gold" : "#555",
+                      fontSize: "1.5rem",
+                      marginRight: "5px",
+                    }}
+                    onClick={() => setReviewRating(star)}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <button
+                style={{ marginTop: "10px", padding: "10px 20px", cursor: "pointer" }}
+                onClick={() => {
+                  if (!reviewText.trim()) return;
+
+                  setReviews((prev) => ({
+                    ...prev,
+                    [selectedGame.id]: [
+                      ...(prev[selectedGame.id] || []),
+                      {
+                        user: user.username || user.email,
+                        text: reviewText,
+                        rating: reviewRating,
+                      },
+                    ],
+                  }));
+
+                  setReviewText("");
+                  setReviewRating(0);
+                }}
+              >
+                Submit Review
+              </button>
+            </div>
+          )}
+
+          {/* Display Reviews */}
+          <div style={{ marginTop: "20px", width: "100%", maxWidth: "600px" }}>
+            <h3>Reviews</h3>
+            {(reviews[selectedGame.id] || []).length === 0 ? (
+              <p>No reviews yet.</p>
+            ) : (
+              reviews[selectedGame.id].map((r, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: "10px",
+                    background: "#333",
+                    padding: "10px",
+                    borderRadius: "6px",
+                    color: "#fff",
+                  }}
+                >
+                  <strong>{r.user}</strong> - {r.rating} / 5 ★
+                  <p style={{ margin: 0 }}>{r.text}</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </>
     );
   }
 
+ 
   return (
     <div>
       <header className="appHeader">
